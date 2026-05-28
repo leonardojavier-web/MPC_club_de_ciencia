@@ -1,32 +1,51 @@
 import asyncio
-import requests
+import ollama
+
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+
 MODEL = "llama3.2"
 
 PYTHON_PATH = r".\venv\Scripts\python.exe"
 SERVER_SCRIPT = r"server.py"
 
-SYSTEM_PROMPT = """Sos un asistente experto en la historia de Las Varillas, Argentina.
-REGLAS ESTRICTAS:
-1. SIEMPRE usá la herramienta 'consultar_fundacion_las_varillas' antes de responder cualquier pregunta.
-2. Respondé ÚNICAMENTE con la información que devuelve la herramienta. No agregues nada más.
-3. Si la herramienta no tiene información sobre algo, decí exactamente: 'No tengo información sobre eso en mis datos locales.'
-4. NUNCA inventes ni agregues información que no venga de la herramienta."""
+
+SYSTEM_PROMPT = """
+Sos un asistente histórico de Las Varillas.
+
+REGLAS OBLIGATORIAS:
+
+1. Nunca inventes información.
+2. Nunca combines datos de herramientas distintas.
+3. Respondé SOLAMENTE usando el contenido exacto devuelto por la herramienta.
+4. No resumas.
+5. No interpretes.
+6. No completes información faltante.
+7. Si una herramienta devuelve un JSON, explicá únicamente lo que aparece en ese JSON.
+8. Si aparece un nombre de persona, no lo conviertas en un evento histórico.
+9. Si no hay información suficiente, decí:
+'No tengo información suficiente en los datos locales.'
+
+Tu trabajo es actuar como un buscador documental, no como un historiador que interpreta.
+"""
+
 
 async def chat_loop():
+
     server_params = StdioServerParameters(
         command=PYTHON_PATH,
         args=[SERVER_SCRIPT]
     )
 
     async with stdio_client(server_params) as (read, write):
+
         async with ClientSession(read, write) as session:
+
             await session.initialize()
 
             tools_result = await session.list_tools()
+
             tools = [
                 {
                     "type": "function",
@@ -42,47 +61,174 @@ async def chat_loop():
             print("✅ Conectado a HistoriaVarillas. Escribí 'salir' para terminar.\n")
 
             while True:
+
                 pregunta = input("Vos: ").strip()
+
                 if pregunta.lower() == "salir":
                     print("¡Hasta luego!")
                     break
+
                 if not pregunta:
                     continue
 
-                # Cada pregunta empieza con el system prompt fresco
                 messages = [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": pregunta}
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT
+                    },
+                    {
+                        "role": "user",
+                        "content": pregunta
+                    }
                 ]
 
                 try:
+
                     while True:
+
                         print("⏳ Pensando...")
-                        response = requests.post(OLLAMA_URL, json={
-                            "model": MODEL,
-                            "messages": messages,
-                            "tools": tools,
-                            "stream": False
-                        }, timeout=120)
 
-                        msg = response.json()["message"]
-                        messages.append(msg)
+                        response = ollama.chat(
+                            model=MODEL,
+                            messages=messages,
+                            tools=tools
+                        )
 
-                        if msg.get("tool_calls"):
-                            for call in msg["tool_calls"]:
-                                nombre = call["function"]["name"]
-                                args = call["function"].get("arguments", {})
-                                print(f"🔧 Usando herramienta: {nombre}")
-                                resultado = await session.call_tool(nombre, args)
-                                messages.append({
-                                    "role": "tool",
-                                    "content": resultado.content[0].text
-                                })
+                        print("\n📦 RESPUESTA OLLAMA:")
+                        print(response)
+
+                        message = response["message"]
+
+                        # Guardar mensaje del modelo
+                        messages.append(message)
+
+                        # --------------------------------
+                        # SI EL MODELO QUIERE USAR TOOLS
+                        # --------------------------------
+
+                        if message.get("tool_calls"):
+
+                            for tool_call in message["tool_calls"]:
+
+                                function_name = tool_call["function"]["name"]
+
+                                arguments = tool_call["function"].get(
+                                    "arguments",
+                                    {}
+                                )
+
+                                print(f"\n🔧 Ejecutando tool: {function_name}")
+                                print("📥 Argumentos originales:", arguments)
+
+                                # --------------------------------
+                                # NORMALIZAR ARGUMENTOS
+                                # --------------------------------
+
+                                if not isinstance(arguments, dict):
+                                    arguments = {}
+
+                                # Compatibilidad formatos raros
+                                if "key" in arguments:
+                                    arguments["consulta"] = arguments["key"]
+
+                                if "query" in arguments:
+                                    arguments["consulta"] = arguments["query"]
+
+                                # --------------------------------
+                                # NORMALIZAR CONSULTA
+                                # --------------------------------
+
+                                if "consulta" in arguments:
+
+                                    consulta = arguments["consulta"]
+
+                                    # Si viene como dict raro
+                                    if isinstance(consulta, dict):
+
+                                        # Caso:
+                                        # {"value":"texto"}
+
+                                        if "value" in consulta:
+                                            consulta = consulta["value"]
+
+                                        # Caso:
+                                        # {"object":"texto"}
+
+                                        elif "object" in consulta:
+                                            consulta = consulta["object"]
+
+                                        # Caso:
+                                        # {"content":"texto"}
+
+                                        elif "content" in consulta:
+                                            consulta = consulta["content"]
+
+                                        else:
+                                            consulta = str(consulta)
+
+                                    consulta = str(consulta).strip()
+
+                                    # Si viene vacío
+                                    if (
+                                        consulta == ""
+                                        or consulta == "{'type': 'string'}"
+                                        or consulta == '{"type":"string"}'
+                                    ):
+                                        consulta = pregunta
+
+                                    arguments["consulta"] = consulta
+
+                                print("📦 Argumentos normalizados:", arguments)
+
+                                try:
+
+                                    # Ejecutar tool MCP
+                                    result = await session.call_tool(
+                                        function_name,
+                                        arguments
+                                    )
+
+                                    print("\n📄 RESULTADO TOOL:")
+                                    print(result)
+
+                                    texto_resultado = ""
+
+                                    # Obtener texto resultado
+                                    if hasattr(result, "content"):
+
+                                        if (
+                                            result.content
+                                            and len(result.content) > 0
+                                        ):
+                                            texto_resultado = (
+                                                result.content[0].text
+                                            )
+
+                                    print("\n📚 TEXTO RESULTADO:")
+                                    print(texto_resultado)
+
+                                    # Agregar resultado al contexto
+                                    messages.append({
+                                        "role": "tool",
+                                        "content": texto_resultado
+                                    })
+
+                                except Exception as e:
+
+                                    print(f"\n❌ Error ejecutando tool: {e}")
+
+                        # --------------------------------
+                        # RESPUESTA FINAL DEL MODELO
+                        # --------------------------------
+
                         else:
-                            print(f"\nIA: {msg['content']}\n")
+
+                            print(f"\n🤖 IA:\n{message['content']}\n")
                             break
 
                 except Exception as e:
-                    print(f"❌ Error: {e}\n")
+
+                    print(f"\n❌ Error general: {e}\n")
+
 
 asyncio.run(chat_loop())
