@@ -1,0 +1,1 @@
+"""Servicios de infraestructura para la aplicación de historia."""

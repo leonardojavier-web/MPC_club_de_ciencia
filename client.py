@@ -1,234 +1,101 @@
-import asyncio
-import ollama
+import os
+import json
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from services.llm_service import OllamaService
+from services.mcp_service import MCPToolService
 
+app = FastAPI()
 
-MODEL = "llama3.2"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-PYTHON_PATH = r".\venv\Scripts\python.exe"
-SERVER_SCRIPT = r"server.py"
-
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SERVER_SCRIPT = os.path.join(BASE_DIR, "backend", "server.py")
+llm_service = OllamaService()
+mcp_service = MCPToolService(SERVER_SCRIPT)
 
 SYSTEM_PROMPT = """
-Sos un asistente histórico de Las Varillas.
-
-REGLAS OBLIGATORIAS:
-
-1. Nunca inventes información.
-2. Nunca combines datos de herramientas distintas.
-3. Respondé SOLAMENTE usando el contenido exacto devuelto por la herramienta.
-4. No resumas.
-5. No interpretes.
-6. No completes información faltante.
-7. Si una herramienta devuelve un JSON, explicá únicamente lo que aparece en ese JSON.
-8. Si aparece un nombre de persona, no lo conviertas en un evento histórico.
-9. Si no hay información suficiente, decí:
-'No tengo información suficiente en los datos locales.'
-
-Tu trabajo es actuar como un buscador documental, no como un historiador que interpreta.
+Eres el Asistente Historiador de Las Varillas. 
+OBLIGATORIEDAD: Para CUALQUIER pregunta relacionada con la historia, fundación, documentos o datos de Las Varillas, DEBES utilizar la herramienta MCP disponible. 
+Responde de forma amable, clara y narrativamente atractiva basándote estrictamente en los resultados de la herramienta.
 """
 
+@app.get("/api/fundacion")
+async def get_fundacion():
+    json_path = os.path.join(BASE_DIR, "backend", "fundacion.json")
+    if os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"error": "Archivo no encontrado"}
 
-async def chat_loop():
+@app.websocket("/ws/chat")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
 
-    server_params = StdioServerParameters(
-        command=PYTHON_PATH,
-        args=[SERVER_SCRIPT]
-    )
-
-    async with stdio_client(server_params) as (read, write):
-
-        async with ClientSession(read, write) as session:
-
-            await session.initialize()
-
-            tools_result = await session.list_tools()
-
-            tools = [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": t.name,
-                        "description": t.description,
-                        "parameters": t.inputSchema
-                    }
-                }
-                for t in tools_result.tools
-            ]
-
-            print("✅ Conectado a HistoriaVarillas. Escribí 'salir' para terminar.\n")
+    try:
+        async with mcp_service.connection() as (session, ollama_tools):
+            await websocket.send_json({
+                "type": "ready",
+                "message": "Servicios MCP y Ollama conectados",
+            })
+            messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
 
             while True:
-
-                pregunta = input("Vos: ").strip()
-
-                if pregunta.lower() == "salir":
-                    print("¡Hasta luego!")
-                    break
-
-                if not pregunta:
-                    continue
-
-                messages = [
-                    {
-                        "role": "system",
-                        "content": SYSTEM_PROMPT
-                    },
-                    {
-                        "role": "user",
-                        "content": pregunta
-                    }
-                ]
+                data = await websocket.receive_text()
+                messages.append({'role': 'user', 'content': data})
 
                 try:
+                    response = await llm_service.chat_async(messages, ollama_tools)
+                    message = response['message']
 
-                    while True:
+                    if message.get('tool_calls'):
+                        for tool_call in message['tool_calls']:
+                            tool_name = tool_call['function']['name']
+                            tool_args = tool_call['function']['arguments']
 
-                        print("⏳ Pensando...")
+                            await websocket.send_json({
+                                "type": "status",
+                                "message": f"🔍 Consultando archivo histórico ({tool_name})..."
+                            })
 
-                        response = ollama.chat(
-                            model=MODEL,
-                            messages=messages,
-                            tools=tools
-                        )
+                            result = await session.call_tool(tool_name, tool_args)
+                            tool_content = mcp_service.content_as_text(result)
 
-                        print("\n📦 RESPUESTA OLLAMA:")
-                        print(response)
+                            messages.append(message)
+                            messages.append({
+                                'role': 'tool',
+                                'content': tool_content
+                            })
 
-                        message = response["message"]
-
-                        # Guardar mensaje del modelo
-                        messages.append(message)
-
-                        # --------------------------------
-                        # SI EL MODELO QUIERE USAR TOOLS
-                        # --------------------------------
-
-                        if message.get("tool_calls"):
-
-                            for tool_call in message["tool_calls"]:
-
-                                function_name = tool_call["function"]["name"]
-
-                                arguments = tool_call["function"].get(
-                                    "arguments",
-                                    {}
-                                )
-
-                                print(f"\n🔧 Ejecutando tool: {function_name}")
-                                print("📥 Argumentos originales:", arguments)
-
-                                # --------------------------------
-                                # NORMALIZAR ARGUMENTOS
-                                # --------------------------------
-
-                                if not isinstance(arguments, dict):
-                                    arguments = {}
-
-                                # Compatibilidad formatos raros
-                                if "key" in arguments:
-                                    arguments["consulta"] = arguments["key"]
-
-                                if "query" in arguments:
-                                    arguments["consulta"] = arguments["query"]
-
-                                # --------------------------------
-                                # NORMALIZAR CONSULTA
-                                # --------------------------------
-
-                                if "consulta" in arguments:
-
-                                    consulta = arguments["consulta"]
-
-                                    # Si viene como dict raro
-                                    if isinstance(consulta, dict):
-
-                                        # Caso:
-                                        # {"value":"texto"}
-
-                                        if "value" in consulta:
-                                            consulta = consulta["value"]
-
-                                        # Caso:
-                                        # {"object":"texto"}
-
-                                        elif "object" in consulta:
-                                            consulta = consulta["object"]
-
-                                        # Caso:
-                                        # {"content":"texto"}
-
-                                        elif "content" in consulta:
-                                            consulta = consulta["content"]
-
-                                        else:
-                                            consulta = str(consulta)
-
-                                    consulta = str(consulta).strip()
-
-                                    # Si viene vacío
-                                    if (
-                                        consulta == ""
-                                        or consulta == "{'type': 'string'}"
-                                        or consulta == '{"type":"string"}'
-                                    ):
-                                        consulta = pregunta
-
-                                    arguments["consulta"] = consulta
-
-                                print("📦 Argumentos normalizados:", arguments)
-
-                                try:
-
-                                    # Ejecutar tool MCP
-                                    result = await session.call_tool(
-                                        function_name,
-                                        arguments
-                                    )
-
-                                    print("\n📄 RESULTADO TOOL:")
-                                    print(result)
-
-                                    texto_resultado = ""
-
-                                    # Obtener texto resultado
-                                    if hasattr(result, "content"):
-
-                                        if (
-                                            result.content
-                                            and len(result.content) > 0
-                                        ):
-                                            texto_resultado = (
-                                                result.content[0].text
-                                            )
-
-                                    print("\n📚 TEXTO RESULTADO:")
-                                    print(texto_resultado)
-
-                                    # Agregar resultado al contexto
-                                    messages.append({
-                                        "role": "tool",
-                                        "content": texto_resultado
-                                    })
-
-                                except Exception as e:
-
-                                    print(f"\n❌ Error ejecutando tool: {e}")
-
-                        # --------------------------------
-                        # RESPUESTA FINAL DEL MODELO
-                        # --------------------------------
-
-                        else:
-
-                            print(f"\n🤖 IA:\n{message['content']}\n")
-                            break
+                        final_response = await llm_service.chat_async(messages)
+                        bot_reply = final_response['message']['content']
+                        messages.append({'role': 'assistant', 'content': bot_reply})
+                        await websocket.send_json({
+                            "type": "response",
+                            "content": bot_reply
+                        })
+                    else:
+                        bot_reply = message['content']
+                        messages.append({'role': 'assistant', 'content': bot_reply})
+                        await websocket.send_json({
+                            "type": "response",
+                            "content": bot_reply
+                        })
 
                 except Exception as e:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": str(e)
+                    })
 
-                    print(f"\n❌ Error general: {e}\n")
-
-
-asyncio.run(chat_loop())
+    except WebSocketDisconnect:
+        print("🔌 Cliente desconectado")
+    except Exception as e:
+        print(f"Error en servidor MCP: {e}")
