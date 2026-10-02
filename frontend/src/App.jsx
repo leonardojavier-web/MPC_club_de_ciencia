@@ -2,7 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { History, ChevronLeft, ChevronRight, MessageSquare, Sparkles, X, Send, Loader2, CircleCheck, Radio, Workflow, GripVertical } from 'lucide-react';
 
-const API_BASE = "http://127.0.0.1:8000/api";
+const API_BASE = "/api";
+const WS_URL = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/ws/chat`;
+
+const formatElapsedTime = (elapsedMs) => {
+  const seconds = elapsedMs / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ${Math.floor(seconds % 60).toString().padStart(2, '0')} s`;
+};
 
 function App() {
   const [connected, setConnected] = useState(false);
@@ -12,8 +21,10 @@ function App() {
   const [input, setInput] = useState("");
   const [data, setData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [thinkingMessage, setThinkingMessage] = useState("");
-  const [servicesReady, setServicesReady] = useState(false);
+  const [mcpReady, setMcpReady] = useState(false);
+  const [ollamaReady, setOllamaReady] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [chatWidth, setChatWidth] = useState(() => {
@@ -25,6 +36,8 @@ function App() {
   const socketRef = useRef(null);
   const chatEndRef = useRef(null);
   const chatResizeRef = useRef(null);
+  const requestStartedAtRef = useRef(null);
+  const elapsedTimerRef = useRef(null);
 
   const fetchFundacion = async () => {
     try {
@@ -39,7 +52,7 @@ function App() {
     let reconnectTimer;
 
     const connectWebSocket = () => {
-      const ws = new WebSocket("ws://127.0.0.1:8000/ws/chat");
+      const ws = new WebSocket(WS_URL);
 
       ws.onopen = () => setConnected(true);
 
@@ -49,14 +62,29 @@ function App() {
           if (msgData.type === "status") {
             setThinkingMessage(msgData.message);
           } else if (msgData.type === "ready") {
-            setServicesReady(true);
+            setMcpReady(msgData.mcpAvailable);
+            setOllamaReady(msgData.ollamaAvailable);
             setThinkingMessage("");
           } else if (msgData.type === "response") {
-            setMessages(prev => [...prev, { role: 'assistant', content: msgData.content }]);
+            const durationMs = requestStartedAtRef.current === null
+              ? null
+              : performance.now() - requestStartedAtRef.current;
+            requestStartedAtRef.current = null;
+            window.clearInterval(elapsedTimerRef.current);
+            elapsedTimerRef.current = null;
+            setElapsedMs(durationMs ?? 0);
+            setMessages(prev => [...prev, { role: 'assistant', content: msgData.content, durationMs }]);
             setIsLoading(false);
             setThinkingMessage("");
           } else if (msgData.type === "error") {
-            setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${msgData.message}` }]);
+            const durationMs = requestStartedAtRef.current === null
+              ? null
+              : performance.now() - requestStartedAtRef.current;
+            requestStartedAtRef.current = null;
+            window.clearInterval(elapsedTimerRef.current);
+            elapsedTimerRef.current = null;
+            setElapsedMs(durationMs ?? 0);
+            setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${msgData.message}`, durationMs }]);
             setIsLoading(false);
             setThinkingMessage("");
           }
@@ -67,7 +95,22 @@ function App() {
 
       ws.onclose = () => {
         setConnected(false);
-        setServicesReady(false);
+        setMcpReady(false);
+        setOllamaReady(false);
+        if (requestStartedAtRef.current !== null) {
+          const durationMs = performance.now() - requestStartedAtRef.current;
+          requestStartedAtRef.current = null;
+          window.clearInterval(elapsedTimerRef.current);
+          elapsedTimerRef.current = null;
+          setElapsedMs(durationMs);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: 'Se interrumpió la conexión antes de recibir una respuesta.',
+            durationMs,
+          }]);
+          setIsLoading(false);
+          setThinkingMessage("");
+        }
         reconnectTimer = setTimeout(connectWebSocket, 3000);
       };
 
@@ -78,6 +121,7 @@ function App() {
     connectWebSocket();
     return () => {
       clearTimeout(reconnectTimer);
+      window.clearInterval(elapsedTimerRef.current);
       if (socketRef.current) socketRef.current.close();
     };
   }, []);
@@ -140,6 +184,13 @@ function App() {
     
     const userMsg = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
+    requestStartedAtRef.current = performance.now();
+    setElapsedMs(0);
+    elapsedTimerRef.current = window.setInterval(() => {
+      if (requestStartedAtRef.current !== null) {
+        setElapsedMs(performance.now() - requestStartedAtRef.current);
+      }
+    }, 100);
     setIsLoading(true);
     setThinkingMessage("Enviando mensaje...");
     
@@ -181,7 +232,7 @@ function App() {
                   onClick={() => scrollToSection(`section-${idx}`)}
                   className="w-full text-left px-3 py-2 rounded-lg text-xs text-slate-300 hover:bg-slate-800 hover:text-amber-400 transition truncate"
                 >
-                  {item.titulo || `Sección ${idx + 1}`}
+                  {item.titulo || item.documento || `Sección ${idx + 1}`}
                 </button>
               ))}
             </nav>
@@ -204,12 +255,12 @@ function App() {
               <span className="text-[10px] uppercase tracking-[0.18em] text-amber-400/80 font-semibold">Archivo vivo</span>
             </div>
             <h1 className="text-lg font-bold text-slate-100 truncate">Debate sobre la fundación de Las Varillas</h1>
-            <p className="text-xs text-slate-400 truncate">Consulta documental coordinada por servicios MCP y Ollama</p>
+            <p className="text-xs text-slate-400 truncate">Fuentes documentales y posturas sobre su origen</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium ${connected && servicesReady ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : 'border-slate-700 bg-slate-900 text-slate-500'}`}>
-              {connected && servicesReady ? <CircleCheck className="w-3.5 h-3.5" /> : <Radio className="w-3.5 h-3.5" />}
-              <span>{connected && servicesReady ? 'MCP + Ollama' : 'Conectando'}</span>
+            <div className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[10px] font-medium ${connected && mcpReady && ollamaReady ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' : connected && mcpReady ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-slate-700 bg-slate-900 text-slate-500'}`}>
+              {connected && mcpReady && ollamaReady ? <CircleCheck className="w-3.5 h-3.5" /> : <Radio className="w-3.5 h-3.5" />}
+              <span>{!connected || !mcpReady ? 'Conectando' : ollamaReady ? 'MCP + Ollama' : 'MCP listo · Ollama no disponible'}</span>
             </div>
             {!isChatOpen && (
               <button
@@ -236,7 +287,9 @@ function App() {
                 id={`section-${idx}`}
                 className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 md:p-8 shadow-xl scroll-mt-24"
               >
-                <h2 className="text-xl md:text-2xl font-semibold text-amber-400 mb-4">{item.titulo}</h2>
+                <h2 className="text-xl md:text-2xl font-semibold text-amber-400 mb-4">
+                  {item.titulo || item.documento || `Sección ${idx + 1}`}
+                </h2>
                 <div className="text-slate-300 text-sm md:text-base leading-relaxed whitespace-pre-line space-y-4">
                   {item.contenido || item.texto || JSON.stringify(item)}
                 </div>
@@ -287,14 +340,21 @@ function App() {
                 key={idx}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                    className={`max-w-[90%] p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed shadow-sm ${
-                    msg.role === 'user'
-                      ? 'bg-amber-600 text-white rounded-br-none'
-                      : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700/60'
-                  }`}
-                >
-                  {msg.content}
+                <div className="flex max-w-[90%] flex-col gap-1.5">
+                  <div
+                      className={`p-3.5 rounded-2xl text-xs md:text-sm leading-relaxed shadow-sm ${
+                      msg.role === 'user'
+                        ? 'bg-amber-600 text-white rounded-br-none'
+                        : 'bg-slate-800 text-slate-200 rounded-bl-none border border-slate-700/60'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                  {msg.role === 'assistant' && msg.durationMs != null && (
+                    <span className="px-1 text-[10px] text-slate-500">
+                      Tiempo de respuesta: {formatElapsedTime(msg.durationMs)}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
@@ -302,7 +362,10 @@ function App() {
             {isLoading && (
               <div className="flex items-center gap-3 text-xs text-amber-400 bg-slate-800/60 border border-amber-500/20 p-3 rounded-xl animate-pulse">
                 <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-                <span>{thinkingMessage || 'Pensando...'}</span>
+                <span>
+                  {thinkingMessage || 'Pensando...'}
+                  <span className="ml-2 text-amber-200/70">{formatElapsedTime(elapsedMs)}</span>
+                </span>
               </div>
             )}
             <div ref={chatEndRef} />
