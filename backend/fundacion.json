@@ -1,0 +1,113 @@
+[
+  {
+    "documento": "Tesis sobre la llegada del ferrocarril",
+    "contenido": "El 24 de diciembre de 1900 se considera el hito fundacional por la llegada del ferrocarril",
+    "autor": "Investigación Local Vol. 1",
+    "tags": ["fundación", "ferrocarril", "1900"]
+  },
+
+  {
+    "id": "debates_origen_01",
+    "titulo": "Introducción al debate sobre el origen",
+    "contenido": "El origen de la ciudad de Las Varillas no posee una fecha única y definitiva, ya que no existe un acta formal de fundación. Por este motivo, historiadores, investigadores y vecinos han sostenido distintas interpretaciones sobre cuándo puede considerarse que nació el pueblo, apoyándose en documentos y criterios históricos diferentes.",
+    "tags": [
+      "origen",
+      "debate histórico",
+      "acta de fundación",
+      "historia general"
+    ],
+    "metadata": {
+      "criterio": "introduccion",
+      "fecha_referencia": null
+    }
+  },
+
+  {
+    "id": "debates_origen_02",
+    "titulo": "Postura 1900: Origen simbólico y poblacional",
+    "contenido": "Durante muchos años se sostuvo que Las Varillas había nacido en el año 1900, una fecha de carácter simbólico y tradicional. Esta postura es defendida principalmente por los integrantes del Centro de Estudios Históricos Parada KM 81, entre ellos Rubén Arce, Irene Peralta de Baldrich y Oscar Valletto. Estos investigadores argumentan que ya existía población estable en la zona antes de 1900, con estancias, familias criollas y actividad rural previa a la llegada del ferrocarril. Como evidencia, citan un documento que data de 1853, donde el gobernador de Córdoba nombra a Don Ramón Álvarez como primer teniente para que cuide la frontera desde Rio Segundo hasta esta zona. También indican que la mención más antigua del nombre Las Varillas data de 1813 donde un vecino de Villa del Rosario solicita un terreno en dicho pasaje. Además, señalan que el año 1900 fue utilizado como referencia en celebraciones oficiales pasadas, como el Cincuentenario en 1950.",
+    "tags": [
+      "1900",
+      "origen simbólico",
+      "Centro de Estudios Históricos Parada KM 81",
+      "población estable",
+      "Ramón Álvarez",
+      "Cincuentenario"
+    ],
+    "metadata": {
+      "criterio": "demografico",
+      "fecha_referencia": 1900
+    }
+  },
+
+  {
+    "id": "debates_origen_03",
+    "titulo": "Postura 1903: Acto organizativo y donación de tierras",
+    "contenido": "Otra postura sostiene que el origen debe situarse en el año 1903, cuando se produjo un acto concreto de organización del pueblo. Esta interpretación es impulsada por vecinos e investigadores como Omar Rubiolo y Valter Dabbene, quienes consideran fundador a José Medardo Álvarez. Según esta posición, en 1903 se tomó la decisión explícita de crear un poblado alrededor de la futura estación ferroviaria. La principal evidencia documental que presentan es la escritura de donación de tierras del 26 de marzo de 1903, realizada por la familia Álvarez Luque, destinada a la formación del pueblo. A ello se suma el primer plano urbano de 1903 y otras escrituras vinculadas a la cesión de terrenos para el trazado del ferrocarril.",
+    "tags": [
+      "1903",
+      "acto fundacional",
+      "donación de tierras",
+      "José Medardo Álvarez",
+      "familia Álvarez Luque",
+      "Omar Rubiolo",
+      "Valter Dabbene",
+      "plano urbano"
+    ],
+    "metadata": {
+      "criterio": "juridico_documental",
+      "fecha_referencia": 1903
+    }
+  },
+
+  {
+    "id": "debates_origen_04",
+    "titulo": "Postura 1904: Llegada del ferrocarril",
+    "contenido": "Una tercera interpretación ubica el nacimiento de Las Varillas en el año 1904, relacionándolo directamente con la llegada del ferrocarril. Según esta mirada, el pueblo se consolidó cuando comenzó a funcionar la estación ferroviaria y pasó el primer tren, hecho que impulsó el crecimiento poblacional, el comercio y la llegada de inmigrantes. La evidencia que respalda esta postura se basa en registros ferroviarios y en la observación histórica de que muchas localidades del interior argentino se desarrollaron a partir del establecimiento del tren. Desde este enfoque, el ferrocarril es considerado el verdadero motor del nacimiento urbano.",
+    "tags": [
+      "1904",
+      "ferrocarril",
+      "consolidación urbana",
+      "inmigrantes",
+      "motor económico"
+    ],
+    "metadata": {
+      "criterio": "economico_funcional",
+      "fecha_referencia": 1904
+    }
+  },
+
+  {
+    "id": "debates_origen_05",
+    "titulo": "Fecha Oficial de Conmemoración",
+    "contenido": "Debido a la coexistencia de estas interpretaciones —1900 como origen simbólico por la presencia humana previa, 1903 como acto fundacional documentado y 1904 como consolidación a partir del ferrocarril— no existe una fecha histórica única e indiscutida para el nacimiento de Las Varillas. Sin embargo, la ciudad cuenta con una fecha oficial de conmemoración, establecida en la Carta Orgánica Municipal: el 7 de octubre, día que coincide con la festividad de Nuestra Señora del Rosario, patrona local. Esta fecha se utiliza actualmente para los actos cívicos y celebraciones oficiales, uniendo la tradición religiosa con la identidad histórica de la comunidad.",
+    "tags": [
+      "7 de octubre",
+      "Carta Orgánica Municipal",
+      "Nuestra Señora del Rosario",
+      "fecha oficial",
+      "celebración patronal"
+    ],
+    "metadata": {
+      "criterio": "oficial",
+      "fecha_referencia": "7 de octubre"
+    }
+  },
+
+  {
+    "id": "debates_origen_06",
+    "titulo": "Conclusión de Criterios Historiográficos",
+    "contenido": "El debate sobre el nacimiento de Las Varillas refleja distintos criterios historiográficos: el criterio demográfico (presencia de población antes de 1900), el criterio jurídico-documental (donación de tierras y plano urbano en 1903) y el criterio económico-funcional (llegada del ferrocarril en 1904). Cada uno cuenta con defensores, documentos y argumentos propios, lo que convierte al origen de la ciudad en un tema abierto a la interpretación histórica y al análisis crítico de las fuentes.",
+    "tags": [
+      "criterios historiográficos",
+      "criterio demográfico",
+      "criterio jurídico",
+      "criterio económico",
+      "resumen"
+    ],
+    "metadata": {
+      "criterio": "conclusion",
+      "fecha_referencia": null
+    }
+  }
+]
