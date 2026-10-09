@@ -1,0 +1,1 @@
+"""Backend adapters and data access for the Historia MCP application."""

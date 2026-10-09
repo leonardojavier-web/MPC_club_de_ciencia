@@ -4,6 +4,18 @@ from typing import AsyncIterator
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
+from services.contracts import ToolExecutor
+
+
+class MCPToolExecutor:
+    """Adapts an MCP session to the application tool-execution contract."""
+
+    def __init__(self, session: ClientSession) -> None:
+        self._session = session
+
+    async def call_tool(self, tool_name: str, arguments: dict) -> str:
+        result = await self._session.call_tool(tool_name, arguments)
+        return MCPToolService.content_as_text(result)
 
 
 class MCPToolService:
@@ -17,13 +29,13 @@ class MCPToolService:
         )
 
     @asynccontextmanager
-    async def connection(self) -> AsyncIterator[tuple[ClientSession, list[dict]]]:
-        """Abre una sesión MCP y la mantiene viva durante el WebSocket."""
+    async def connection(self) -> AsyncIterator[tuple[ToolExecutor, list[dict]]]:
+        """Abre una sesión MCP que puede compartirse mientras vive FastAPI."""
         async with stdio_client(self.server_params) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 tools = await session.list_tools()
-                yield session, self._format_tools(tools.tools)
+                yield MCPToolExecutor(session), self._format_tools(tools.tools)
 
     @staticmethod
     def _format_tools(tools) -> list[dict]:
