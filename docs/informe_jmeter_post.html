@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Informe JMeter - Pruebas WebSocket</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 16mm 19mm;
+      @bottom-right {
+        color: #53657a;
+        content: "Página " counter(page) " de " counter(pages);
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 8pt;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      color: #172338;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      margin: 0 auto;
+      max-width: 210mm;
+    }
+    h1, h2, h3 { color: #12335b; line-height: 1.2; }
+    h1 { font-size: 28pt; margin: 0 0 12pt; }
+    h2 { border-bottom: 2px solid #18a6a6; font-size: 19pt; margin: 0 0 12pt; padding-bottom: 5pt; page-break-after: avoid; }
+    h3 { font-size: 13pt; margin: 15pt 0 6pt; }
+    p { margin: 5pt 0 9pt; }
+    ul { margin: 5pt 0 10pt; padding-left: 20pt; }
+    li { margin: 3pt 0; }
+    .cover {
+      align-items: center;
+      background: linear-gradient(145deg, #102c50, #176e83);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 255mm;
+      justify-content: center;
+      page-break-after: always;
+      text-align: center;
+    }
+    .cover .eyebrow { color: #a9e8e4; font-size: 12pt; letter-spacing: 3px; text-transform: uppercase; }
+    .cover h1 { color: white; font-size: 32pt; margin: 22pt 0 10pt; }
+    .cover .subtitle { color: #dcebf4; font-size: 16pt; max-width: 140mm; }
+    .cover .rule { background: #42d1c5; height: 3px; margin: 22pt 0; width: 45mm; }
+    .cover .meta { color: #e4f0f5; font-size: 11pt; line-height: 2; }
+    .section { margin-bottom: 14pt; }
+    .summary-section { page-break-after: always; }
+    .test-section, .analysis-section { page-break-before: always; }
+    .callout {
+      background: #edf7f7;
+      border-left: 4px solid #149b9b;
+      margin: 10pt 0;
+      padding: 9pt 12pt;
+    }
+    .warning { background: #fff6e8; border-left-color: #e59a2f; }
+    table {
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 9pt 0 14pt;
+      width: 100%;
+    }
+    thead { display: table-header-group; }
+    th, td { border: 1px solid #cbd5e1; padding: 6pt 7pt; text-align: left; vertical-align: top; }
+    tr { page-break-inside: avoid; }
+    th { background: #12335b; color: white; }
+    tr:nth-child(even) td { background: #f4f7fa; }
+    code {
+      background: #edf1f5;
+      border-radius: 3px;
+      color: #18395d;
+      font-family: Consolas, monospace;
+      padding: 1px 4px;
+    }
+    figure { margin: 12pt 0 18pt; page-break-inside: avoid; }
+    figure img {
+      border: 1px solid #cbd5e1;
+      display: block;
+      height: auto;
+      max-height: 135mm;
+      object-fit: contain;
+      width: 100%;
+    }
+    figcaption { color: #53657a; font-size: 8.5pt; margin-top: 5pt; }
+    .recommendation {
+      background: #f0f5fa;
+      border-radius: 5px;
+      margin: 8pt 0;
+      padding: 8pt 10pt;
+    }
+    .small { color: #53657a; font-size: 8.5pt; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Informe técnico</div>
+    <h1>Pruebas de rendimiento<br>con Apache JMeter</h1>
+    <div class="rule"></div>
+    <div class="subtitle">Smoke, Carga y Estrés<br>Comunicación WebSocket del chat</div>
+    <div class="meta" style="margin-top: 35pt">
+      Proyecto: MPC Club de Ciencia<br>
+      Ruta: /ws/chat<br>
+      Herramienta: Apache JMeter 5.6.3<br>
+      Fecha: 15 de octubre de 2026<br>
+      Estudiantes: Ibañez · Ludueña · Cabrera · Fornero · Sarmiento
+    </div>
+  </section>
+
+  <section class="section summary-section">
+    <h2>1. Resumen ejecutivo</h2>
+    <p>Este informe presenta las pruebas JMeter guardadas en <code>docs/capturas_post</code>. La evidencia corresponde a la comunicación WebSocket del chat —conexión, escritura, lectura y cierre— en la ruta <code>/ws/chat</code>. Aunque la carpeta se denomina “capturas_post”, estas métricas no son de una solicitud HTTP POST.</p>
+    <table>
+      <thead><tr><th>Tipo</th><th>Configuración visible</th><th>Resultado agregado</th><th>Lectura</th></tr></thead>
+      <tbody>
+        <tr><td>Smoke</td><td>1 usuario; ramp-up 1 s; 1 iteración; 4 samplers</td><td>4 muestras; p95 2 ms; 0.00 % errores</td><td>Secuencia básica completada</td></tr>
+        <tr><td>Carga</td><td>50 usuarios; 4 samplers por usuario; ramp-up/iteraciones no visibles</td><td>200 muestras; promedio 1 ms; p95 6 ms; 0.00 % errores</td><td>Sin errores en la ejecución observada</td></tr>
+        <tr><td>Estrés</td><td>500 usuarios; 4 samplers; 20,000 muestras</td><td>Promedio 792 ms; p95 5,947 ms; 72.32 % errores</td><td>Degradación severa bajo alta concurrencia</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><strong>Alcance:</strong> se informa el ramp-up de smoke como 1 segundo, indicado para esta prueba. Las capturas de carga y estrés muestran el número de hilos y los agregados, pero no permiten leer con fiabilidad el ramp-up ni el loop count. En el estrés, 20,000 muestras / 500 usuarios / 4 samplers da 10 repeticiones del flujo por usuario como cálculo derivado, no como valor confirmado del Thread Group.</div>
+  </section>
+
+  <section class="section">
+    <h2>2. Plan de pruebas</h2>
+    <h3>Objetivo</h3>
+    <p>Verificar el establecimiento y ciclo básico del WebSocket y observar latencia y errores cuando aumenta la concurrencia.</p>
+    <table>
+      <tbody>
+        <tr><th style="width: 29%">Sistema bajo prueba</th><td>Servicio de chat del proyecto MPC Club de Ciencia</td></tr>
+        <tr><th>Ruta</th><td><code>ws://127.0.0.1:8000/ws/chat</code> (la captura de JMeter muestra el host local y el puerto 8000)</td></tr>
+        <tr><th>Protocolo</th><td>WebSocket; el establecimiento se identifica con respuesta HTTP 101 Switching Protocols</td></tr>
+        <tr><th>Secuencia de samplers</th><td>WebSocket Open Connection, Single Write, Single Read y Close</td></tr>
+        <tr><th>Herramienta</th><td>Apache JMeter 5.6.3</td></tr>
+        <tr><th>Listeners</th><td>Aggregate Report y View Results Tree</td></tr>
+      </tbody>
+    </table>
+    <h3>Tipos de prueba</h3>
+    <ul>
+      <li><strong>Smoke:</strong> 1 hilo y una iteración para confirmar la conexión y ejecutar el ciclo mínimo.</li>
+      <li><strong>Carga:</strong> 50 hilos concurrentes para observar el comportamiento del ciclo WebSocket.</li>
+      <li><strong>Estrés:</strong> 500 hilos para exponer degradación y fallos bajo una concurrencia alta.</li>
+    </ul>
+    <div class="callout"><strong>Criterio de lectura:</strong> el agregado incluye cuatro samplers por ciclo. Por eso, 4, 200 y 20,000 muestras no deben leerse automáticamente como el mismo número de mensajes de usuario procesados.</div>
+    <p class="small">Fuente de resultados y capturas: <code>docs/capturas_post</code>. El árbol de resultados disponible es de smoke; las capturas de carga y estrés suministradas son de Aggregate Report.</p>
+  </section>
+
+  <section class="section test-section">
+    <h2>3. Prueba 1 — Smoke</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 29%">Tipo</th><td>Smoke</td></tr>
+        <tr><th>Ruta</th><td><code>ws://127.0.0.1:8000/ws/chat</code></td></tr>
+        <tr><th>Método / protocolo</th><td>WebSocket (upgrade inicial HTTP 101)</td></tr>
+        <tr><th>Usuarios</th><td>1 hilo</td></tr>
+        <tr><th>Ramp-up</th><td>1 segundo</td></tr>
+        <tr><th>Iteraciones</th><td>1; flujo de 4 samplers</td></tr>
+        <tr><th>Rendimiento</th><td>4 muestras en total; promedio total 0 ms; máximo y p95 2 ms en el agregado. La apertura de conexión registra promedio 2 ms.</td></tr>
+        <tr><th>Resultado</th><td>0 errores; la respuesta del sampler de apertura indica 101 Switching Protocols.</td></tr>
+      </tbody>
+    </table>
+    <p>El smoke ejecuta una sola secuencia de conexión, escritura, lectura y cierre. El listener agregado registra una muestra por sampler. La vista de resultados muestra que el upgrade WebSocket fue aceptado (101) y que el sampler seleccionado terminó sin error.</p>
+    <figure>
+      <img src="capturas_post/prueba_smoke.png" alt="Aggregate Report de JMeter para smoke WebSocket">
+      <figcaption>Figura 1. Informe agregado del smoke: cuatro samplers, cuatro muestras en total y 0.00 % de errores.</figcaption>
+    </figure>
+    <figure>
+      <img src="capturas_post/smooke_respuesta_prueba_.png" alt="View Results Tree de JMeter para smoke WebSocket">
+      <figcaption>Figura 2. Árbol de resultados: secuencia WebSocket y respuesta 101 Switching Protocols para el establecimiento de conexión.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section test-section">
+    <h2>4. Prueba 2 — Carga</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 29%">Tipo</th><td>Carga</td></tr>
+        <tr><th>Ruta</th><td><code>ws://127.0.0.1:8000/ws/chat</code></td></tr>
+        <tr><th>Método / protocolo</th><td>WebSocket: abrir, escribir, leer y cerrar</td></tr>
+        <tr><th>Usuarios</th><td>50 hilos (indicador de JMeter)</td></tr>
+        <tr><th>Ramp-up</th><td>No legible en la captura agregada disponible</td></tr>
+        <tr><th>Iteraciones</th><td>50 muestras por sampler; cuatro samplers; 200 muestras totales. El loop count del Thread Group no es legible.</td></tr>
+        <tr><th>Rendimiento total</th><td>Promedio 1 ms; mediana 1 ms; p90 4 ms; p95 6 ms; p99 7 ms; mínimo 0 ms; máximo 7 ms; throughput 4.1 muestras/s</td></tr>
+        <tr><th>Resultado</th><td>200 muestras agregadas; 0.00 % de errores</td></tr>
+      </tbody>
+    </table>
+    <p>En la ejecución observada, los cuatro samplers registran 50 muestras cada uno y no aparecen errores. Los tiempos agregados son bajos en esta corrida; la duración sostenida y el ramp-up no quedan establecidos por la evidencia disponible.</p>
+    <figure>
+      <img src="capturas_post/prueba_carga.png" alt="Aggregate Report de JMeter para carga WebSocket">
+      <figcaption>Figura 3. Informe agregado de carga: 50 muestras por sampler (200 total), 0.00 % de errores y percentiles totales de 4, 6 y 7 ms.</figcaption>
+    </figure>
+    <div class="callout warning"><strong>Árbol de resultados:</strong> no se encontró una captura independiente del árbol para la corrida de carga. La evidencia individual disponible en la carpeta corresponde al smoke; no se presenta como si fuera la corrida de carga.</div>
+  </section>
+
+  <section class="section test-section">
+    <h2>5. Prueba 3 — Estrés</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 29%">Tipo</th><td>Estrés</td></tr>
+        <tr><th>Ruta</th><td><code>ws://127.0.0.1:8000/ws/chat</code></td></tr>
+        <tr><th>Método / protocolo</th><td>WebSocket: abrir, escribir, leer y cerrar</td></tr>
+        <tr><th>Usuarios</th><td>500 hilos (indicador visible en JMeter)</td></tr>
+        <tr><th>Ramp-up</th><td>No legible en la captura agregada disponible</td></tr>
+        <tr><th>Iteraciones</th><td>5,000 muestras por sampler; cuatro samplers; 20,000 muestras totales. Equivale a 10 flujos por hilo solo si cada flujo ejecuta los cuatro samplers una vez.</td></tr>
+        <tr><th>Rendimiento total</th><td>Promedio 792 ms; mediana 0 ms; p90 2,034 ms; p95 5,947 ms; p99 7,515 ms; mínimo 0 ms; máximo 8,054 ms. Throughput agregado mostrado: 0/hora.</td></tr>
+        <tr><th>Resultado</th><td>20,000 muestras agregadas; 72.32 % de errores.</td></tr>
+      </tbody>
+    </table>
+    <p>La ejecución de estrés presenta un 72.32 % de errores y tiempos elevados en los percentiles superiores. La mediana total de 0 ms y el throughput total mostrado como 0/hora, junto con la tasa de errores, requieren revisar los resultados por sampler y el log de JMeter antes de extraer conclusiones sobre solicitudes completadas correctamente.</p>
+    <figure>
+      <img src="capturas_post/prueba_estres.png" alt="Aggregate Report de JMeter para estrés WebSocket">
+      <figcaption>Figura 4. Informe agregado de estrés: 5,000 muestras por sampler, 20,000 totales y 72.32 % de errores.</figcaption>
+    </figure>
+    <div class="callout warning"><strong>Árbol de resultados:</strong> no se encontró una captura independiente del árbol para la corrida de estrés; no se atribuyen causas concretas a los fallos sin las respuestas y registros de esa ejecución.</div>
+  </section>
+
+  <section class="section analysis-section">
+    <h2>6. Análisis final</h2>
+    <h3>Smoke</h3>
+    <p>Con 1 hilo, 1 segundo de ramp-up y 1 iteración, el ciclo WebSocket básico se completó sin errores. La respuesta 101 confirma el establecimiento de la conexión; esta prueba verifica funcionamiento, no capacidad.</p>
+    <h3>Carga</h3>
+    <p>La corrida de 50 hilos registró 200 resultados de samplers y 0 % de errores. La latencia agregada fue baja en la muestra tomada. Al no verse el ramp-up ni la duración del grupo, no permite certificar comportamiento sostenido ni extrapolar a cargas mayores.</p>
+    <h3>Estrés</h3>
+    <p>Con 500 hilos se registraron 20,000 muestras y 72.32 % de errores. Los percentiles p95 y p99 de 5,947 ms y 7,515 ms reflejan degradación significativa. El resultado sugiere que esta configuración excede la capacidad estable del entorno ensayado, pero las capturas por sí solas no determinan si el origen es el servidor, el cliente de prueba o una dependencia.</p>
+    <div class="callout"><strong>Conclusión:</strong> la secuencia WebSocket funciona en smoke y la corrida de carga observada no presenta errores; la corrida de estrés revela fallos numerosos y latencias altas. Se recomienda repetir la prueba de estrés con JMeter no-GUI, ramp-up y duración registrados, y recoger métricas del servidor y causas de error por sampler.</div>
+    <h3>Recomendaciones</h3>
+    <div class="recommendation">1. Guardar el plan JMeter (.jmx) y el resultado (.jtl) de cada ejecución junto con las capturas.</div>
+    <div class="recommendation">2. Registrar usuarios, ramp-up, duración, loop count y configuración de cada sampler en los resultados.</div>
+    <div class="recommendation">3. En carga y estrés, conservar el View Results Tree o un reporte de errores con código/mensaje y correlacionarlo con los logs del backend.</div>
+    <div class="recommendation">4. Ejecutar pruebas escalonadas de concurrencia y monitorizar CPU, memoria, conexiones y dependencias del chat.</div>
+    <p class="small">Nota de alcance: este documento refleja las capturas de WebSocket en <code>docs/capturas_post</code>. No representa pruebas del endpoint HTTP <code>POST /api/chat</code>.</p>
+  </section>
+</body>
+</html>
