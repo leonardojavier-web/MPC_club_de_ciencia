@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Informe de pruebas de rendimiento - JMeter</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 15mm 16mm 19mm;
+      @bottom-right {
+        color: #53657a;
+        content: "Página " counter(page) " de " counter(pages);
+        font-family: "Segoe UI", Arial, sans-serif;
+        font-size: 8pt;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      color: #172338;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.5;
+      margin: 0 auto;
+      max-width: 210mm;
+    }
+    h1, h2, h3 { color: #12335b; line-height: 1.2; }
+    h1 { font-size: 28pt; margin: 0 0 12pt; }
+    h2 { border-bottom: 2px solid #18a6a6; font-size: 19pt; margin: 0 0 12pt; padding-bottom: 5pt; page-break-after: avoid; }
+    h3 { font-size: 13pt; margin: 15pt 0 6pt; }
+    p { margin: 5pt 0 9pt; }
+    ul { margin: 5pt 0 10pt; padding-left: 20pt; }
+    li { margin: 3pt 0; }
+    .cover {
+      align-items: center;
+      background: linear-gradient(145deg, #102c50, #176e83);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      height: 255mm;
+      justify-content: center;
+      page-break-after: always;
+      text-align: center;
+    }
+    .cover .eyebrow { color: #a9e8e4; font-size: 12pt; letter-spacing: 3px; text-transform: uppercase; }
+    .cover h1 { color: white; font-size: 32pt; margin: 22pt 0 10pt; }
+    .cover .subtitle { color: #dcebf4; font-size: 16pt; max-width: 135mm; }
+    .cover .rule { background: #42d1c5; height: 3px; margin: 22pt 0; width: 45mm; }
+    .cover .meta { color: #e4f0f5; font-size: 11pt; line-height: 2; }
+    .section { margin-bottom: 14pt; }
+    .test-section, .analysis-section { page-break-before: always; }
+    .callout {
+      background: #edf7f7;
+      border-left: 4px solid #149b9b;
+      margin: 10pt 0;
+      padding: 9pt 12pt;
+    }
+    .warning {
+      background: #fff6e8;
+      border-left-color: #e59a2f;
+    }
+    table {
+      border-collapse: collapse;
+      font-size: 9pt;
+      margin: 9pt 0 14pt;
+      width: 100%;
+    }
+    thead { display: table-header-group; }
+    th, td { border: 1px solid #cbd5e1; padding: 6pt 7pt; text-align: left; vertical-align: top; }
+    tr { page-break-inside: avoid; }
+    th { background: #12335b; color: white; }
+    tr:nth-child(even) td { background: #f4f7fa; }
+    code {
+      background: #edf1f5;
+      border-radius: 3px;
+      color: #18395d;
+      font-family: Consolas, monospace;
+      padding: 1px 4px;
+    }
+    figure { margin: 12pt 0 18pt; page-break-inside: avoid; }
+    figure img {
+      border: 1px solid #cbd5e1;
+      display: block;
+      height: auto;
+      max-height: 135mm;
+      object-fit: contain;
+      width: 100%;
+    }
+    figcaption { color: #53657a; font-size: 8.5pt; margin-top: 5pt; }
+    .small { color: #53657a; font-size: 8.5pt; }
+    .recommendation {
+      background: #f0f5fa;
+      border-radius: 5px;
+      margin: 8pt 0;
+      padding: 8pt 10pt;
+    }
+    .footer-note { border-top: 1px solid #cbd5e1; color: #53657a; font-size: 8pt; margin-top: 20pt; padding-top: 6pt; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="eyebrow">Informe técnico</div>
+    <h1>Pruebas de rendimiento<br>con Apache JMeter</h1>
+    <div class="rule"></div>
+    <div class="subtitle">Pruebas Smoke, Carga y Estrés<br>API de Fundación</div>
+    <div class="meta" style="margin-top: 35pt">
+      Proyecto: MPC Club de Ciencia<br>
+      Herramienta: Apache JMeter 5.6.3<br>
+      Fecha del informe: 15 de octubre de 2026<br>
+      Estudiantes: Ibañez · Ludueña · Cabrera · Fornero · Sarmiento
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>1. Resumen ejecutivo</h2>
+    <p>Este informe organiza la evidencia disponible de Apache JMeter para tres tipos de prueba: smoke, carga y estrés. El objetivo es comprobar la respuesta del servicio y observar cómo cambian los tiempos y los errores al aumentar el volumen de solicitudes.</p>
+    <table>
+      <thead><tr><th>Tipo</th><th>Configuración observable</th><th>Resultado principal</th><th>Lectura</th></tr></thead>
+      <tbody>
+        <tr><td>Smoke</td><td>1 usuario; 1 iteración</td><td>1 muestra; promedio 269 ms; 0.00 % de errores</td><td>Verificación funcional básica satisfactoria</td></tr>
+        <tr><td>Carga</td><td>50 muestras; la interfaz muestra 50 hilos</td><td>Promedio 4 ms; 0.00 % de errores; máximo 53 ms</td><td>Resultado favorable en el volumen observado</td></tr>
+        <tr><td>Estrés</td><td>10,000 hilos; 30,000 muestras</td><td>Promedio 1,137 ms; 51.25 % de errores</td><td>Degradación importante bajo carga extrema</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><strong>Alcance de la evidencia:</strong> Smoke se ejecuta con 1 usuario y 1 iteración para comprobar que el servicio funciona. Los valores de ramp-up no son legibles en las capturas. En carga, 50 muestras se informan como volumen observado; para estrés, 30,000 muestras / 10,000 hilos equivale aproximadamente a 3 solicitudes por hilo si el plan ejecutó un sampler por iteración. Esta inferencia no sustituye la configuración original del Thread Group.</div>
+  </section>
+
+  <section class="section">
+    <h2>2. Plan de pruebas</h2>
+    <h3>Objetivo</h3>
+    <p>Validar la disponibilidad del endpoint de consulta y medir latencia, percentiles, throughput y porcentaje de errores en tres niveles de exigencia.</p>
+    <h3>Alcance técnico</h3>
+    <table>
+      <tbody>
+        <tr><th style="width: 28%">Sistema bajo prueba</th><td>API backend del proyecto MPC Club de Ciencia</td></tr>
+        <tr><th>Ruta</th><td><code>http://127.0.0.1:8000/api/fundacion</code></td></tr>
+        <tr><th>Método</th><td>HTTP GET</td></tr>
+        <tr><th>Respuesta esperada</th><td>Registros de la fundación en formato JSON</td></tr>
+        <tr><th>Herramienta / versión</th><td>Apache JMeter 5.6.3 (visible en las capturas)</td></tr>
+        <tr><th>Listeners solicitados</th><td>Aggregate Report (Informe agregado) y View Results Tree (Árbol de resultados)</td></tr>
+      </tbody>
+    </table>
+    <h3>Tipos de prueba incluidos</h3>
+    <ul>
+      <li><strong>Smoke:</strong> ejecución breve para verificar que la ruta responde correctamente.</li>
+      <li><strong>Carga:</strong> concurrencia moderada para observar el comportamiento con solicitudes simultáneas.</li>
+      <li><strong>Estrés:</strong> incremento extremo de hilos para identificar degradación y fallos bajo presión.</li>
+    </ul>
+    <div class="callout"><strong>Condición de aceptación sugerida:</strong> respuesta HTTP válida y 0 % de errores en smoke; para carga, mantener errores en 0 % y latencia estable. En estrés se busca identificar el punto de degradación; no se considera una condición de operación normal.</div>
+    <p class="small">Las capturas de evidencia están guardadas en <code>docs/capturas_GET</code>. Los datos numéricos que no se visualizan claramente en la evidencia se reportan como “no verificable” en lugar de asumir valores.</p>
+  </section>
+
+  <section class="section test-section">
+    <h2>3. Prueba 1 — Smoke</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 28%">Tipo de prueba</th><td>Smoke</td></tr>
+        <tr><th>Ruta</th><td><code>/api/fundacion</code></td></tr>
+        <tr><th>Método</th><td>GET</td></tr>
+        <tr><th>Usuarios (hilos)</th><td>1</td></tr>
+        <tr><th>Ramp-up</th><td>No verificable en la captura</td></tr>
+        <tr><th>Iteraciones</th><td>1</td></tr>
+        <tr><th>Rendimiento</th><td>Una muestra; tiempo de respuesta 269 ms; throughput observado 3.7 solicitudes/s</td></tr>
+        <tr><th>Resultado</th><td>1 muestra; 0.00 % de errores</td></tr>
+      </tbody>
+    </table>
+    <p>La prueba smoke usa un único usuario y una única iteración: su propósito es comprobar rápidamente que el endpoint responde. La muestra registrada terminó en 269 ms, sin errores, y el árbol de resultados muestra el JSON recibido.</p>
+    <figure>
+      <img src="capturas_GET/prueba-smooke.png" alt="Informe agregado de JMeter para smoke">
+      <figcaption>Figura 1. Aggregate Report de la prueba smoke: 1 muestra, 269 ms y 0.00 % de errores.</figcaption>
+    </figure>
+    <figure>
+      <img src="capturas_GET/preuba-smooke_respuesta.png" alt="Árbol de resultados de JMeter para smoke">
+      <figcaption>Figura 2. View Results Tree: muestra HTTP seleccionada y cuerpo JSON recibido.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section test-section">
+    <h2>4. Prueba 2 — Carga</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 28%">Tipo de prueba</th><td>Carga</td></tr>
+        <tr><th>Ruta</th><td><code>/api/fundacion</code></td></tr>
+        <tr><th>Método</th><td>GET</td></tr>
+        <tr><th>Usuarios (hilos)</th><td>50, según indicador visible en la evidencia asociada</td></tr>
+        <tr><th>Ramp-up</th><td>No verificable en las capturas</td></tr>
+        <tr><th>Iteraciones</th><td>50 muestras totales; aproximadamente 1 por hilo (estimado)</td></tr>
+        <tr><th>Rendimiento</th><td>Promedio 4 ms; mediana 3 ms; p90 6 ms; p95 7 ms; p99 53 ms; mínimo 2 ms; máximo 53 ms; throughput 1.3 solicitudes/s</td></tr>
+        <tr><th>Resultado</th><td>50 muestras; 0.00 % de errores</td></tr>
+      </tbody>
+    </table>
+    <p>En el volumen documentado, la respuesta se mantuvo sin errores y con una latencia media de 4 ms. El máximo de 53 ms y el percentil 99 de 53 ms muestran algunas respuestas más lentas que la mediana, aunque no fallidas.</p>
+    <figure>
+      <img src="capturas_GET/prueba_carga2_reespuesta.png" alt="Informe agregado de JMeter para carga">
+      <figcaption>Figura 3. Aggregate Report de la ejecución de carga disponible: 50 muestras y 0.00 % de errores.</figcaption>
+    </figure>
+    <figure>
+      <img src="capturas_GET/prueba_carga2.png" alt="Árbol de resultados de JMeter para carga">
+      <figcaption>Figura 4. View Results Tree de la prueba de carga: resultados individuales y contenido de respuesta.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section test-section">
+    <h2>5. Prueba 3 — Estrés</h2>
+    <table>
+      <tbody>
+        <tr><th style="width: 28%">Tipo de prueba</th><td>Estrés</td></tr>
+        <tr><th>Ruta</th><td><code>/api/fundacion</code></td></tr>
+        <tr><th>Método</th><td>GET</td></tr>
+        <tr><th>Usuarios (hilos)</th><td>10,000, según indicador visible en JMeter</td></tr>
+        <tr><th>Ramp-up</th><td>No verificable en la captura</td></tr>
+        <tr><th>Iteraciones</th><td>30,000 muestras; aproximadamente 3 por hilo si hubo un sampler por iteración (inferencia)</td></tr>
+        <tr><th>Rendimiento</th><td>Promedio 1,137 ms; mediana 1,458 ms; p90 2,057 ms; p95 2,262 ms; p99 2,853 ms; mínimo 1 ms; máximo 4,201 ms; throughput 1,304.9 solicitudes/s</td></tr>
+        <tr><th>Resultado</th><td>30,000 muestras; 51.25 % de errores</td></tr>
+      </tbody>
+    </table>
+    <p>La ejecución de estrés presenta un deterioro claro: más de la mitad de las muestras fallaron y los percentiles de latencia se elevaron a segundos. Aunque el throughput informado es alto, debe interpretarse junto al 51.25 % de errores; el volumen procesado no representa respuestas exitosas.</p>
+    <figure>
+      <img src="capturas_GET/prueba_carga.png" alt="Informe agregado de JMeter para estrés">
+      <figcaption>Figura 5. Aggregate Report de alta concurrencia: 30,000 muestras, promedio de 1,137 ms y 51.25 % de errores. La clasificación se basa en los valores visibles, aunque el nombre original del archivo contenga “carga”.</figcaption>
+    </figure>
+    <figure>
+      <img src="capturas_GET/prueba_carga1_respuesta.png" alt="Árbol de resultados de JMeter bajo carga">
+      <figcaption>Figura 6. View Results Tree disponible para inspeccionar solicitudes y respuestas individuales. La captura del árbol es evidencia complementaria y no permite correlacionar cada muestra con el agregado de 30,000.</figcaption>
+    </figure>
+  </section>
+
+  <section class="section analysis-section">
+    <h2>6. Análisis final</h2>
+    <h3>Smoke</h3>
+    <p>El endpoint respondió correctamente en la muestra registrada: 1 usuario, 1 iteración y 0 % de errores. La duración de 269 ms permite confirmar la respuesta funcional básica en el entorno y momento capturados; no pretende medir capacidad concurrente.</p>
+    <h3>Carga</h3>
+    <p>Con 50 muestras, el informe agregado no registra errores y presenta una media de 4 ms. Es un resultado favorable para el volumen medido. No permite, por sí solo, afirmar capacidad para una carga sostenida mayor: la duración, el ramp-up real, la configuración exacta del grupo de hilos y las condiciones del equipo no son verificables en las capturas.</p>
+    <h3>Estrés</h3>
+    <p>La corrida de 10,000 hilos alcanzó 30,000 muestras, pero registró un 51.25 % de errores y un p95 de 2,262 ms. Esto indica que el sistema no sostuvo esa carga extrema de forma confiable. El throughput de 1,304.9 solicitudes/s debe leerse con cautela debido a la elevada tasa de fallos. La evidencia no basta para atribuir la causa a un componente concreto (API, dependencias, servidor de prueba o entorno).</p>
+    <h3>Conclusión global</h3>
+    <div class="callout"><strong>Conclusión:</strong> el servicio muestra un comportamiento adecuado en las corridas smoke y carga documentadas, pero presenta una degradación significativa bajo estrés extremo. No se recomienda usar el resultado de estrés como capacidad de producción sin repetir la prueba con configuración controlada, criterios de éxito explícitos y métricas del servidor.</div>
+    <h3>Recomendaciones</h3>
+    <div class="recommendation">1. Guardar el plan JMeter (.jmx) y los resultados (.jtl) junto con las capturas para hacer reproducibles las pruebas.</div>
+    <div class="recommendation">2. Registrar y documentar hilos, ramp-up, duración y loop count de cada Thread Group; repetir pruebas separadas para smoke, carga y estrés.</div>
+    <div class="recommendation">3. Ejecutar carga progresiva (por ejemplo, escalones de concurrencia) y repetir cada escalón para encontrar el umbral de degradación.</div>
+    <div class="recommendation">4. Correlacionar errores de JMeter con códigos HTTP, logs de backend, CPU, memoria, conexiones y dependencias externas.</div>
+    <div class="recommendation">5. En ejecuciones de alta concurrencia, usar JMeter en modo no-GUI y evitar listeners pesados durante la medición; generar el informe HTML desde el archivo JTL después de la corrida.</div>
+    <div class="footer-note">Fuente: capturas JMeter proporcionadas en <code>docs/capturas_GET</code>. Los resultados describen únicamente las ejecuciones evidenciadas y no constituyen una garantía de rendimiento en otros entornos.</div>
+  </section>
+</body>
+</html>
